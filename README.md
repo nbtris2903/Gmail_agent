@@ -1,10 +1,10 @@
 # Trisagent
 
-Trisagent is a personal AI agent built with **OpenAI, LangChain, LangGraph, Gmail API, and Telegram**.
+Trisagent is a personal AI agent built with **OpenAI, LangChain, LangGraph, Gmail API, Telegram, and Docker**.
 
 The project is designed to explore how AI Agents can understand natural-language requests, decide when external tools are needed, execute those tools, observe the results, and continue reasoning until a final response can be returned to the user.
 
-Currently, Trisagent can interact with Gmail through a Telegram bot and a terminal interface.
+Currently, Trisagent can interact with Gmail through a Telegram bot and a terminal interface. The application can also be packaged and run using Docker and Docker Compose.
 
 ---
 
@@ -93,6 +93,7 @@ Current features include:
 
 - Chat with Trisagent through Telegram
 - Chat with the Agent through the terminal
+- Telegram user whitelist for access control
 - Retrieve recent Gmail messages
 - Search Gmail using natural-language requests
 - Read the full content of an email
@@ -103,6 +104,8 @@ Current features include:
 - Short-term conversation memory
 - Gmail authentication using OAuth 2.0
 - Debug mode for observing Agent workflow
+- Docker containerization
+- Docker Compose support
 
 ---
 
@@ -148,6 +151,8 @@ Trisagent currently uses:
 - **python-telegram-bot**
 - **BeautifulSoup**
 - **python-dotenv**
+- **Docker**
+- **Docker Compose**
 
 ---
 
@@ -161,9 +166,14 @@ gmail_agent/
 |-- gmail_tools.py
 |-- telegram_bot.py
 |-- debug_workflow.py
+|
 |-- requirements.txt
 |-- README.md
 |-- .gitignore
+|
+|-- Dockerfile
+|-- .dockerignore
+|-- compose.yaml
 |
 |-- .env                # Not committed
 |-- credentials.json    # Not committed
@@ -194,7 +204,7 @@ Provides a terminal interface for interacting with Trisagent.
 
 **`telegram_bot.py`**
 
-Connects the LangGraph Agent to Telegram.
+Connects the LangGraph Agent to Telegram and restricts access using a Telegram user whitelist.
 
 **`debug_workflow.py`**
 
@@ -216,6 +226,16 @@ AGENT FINAL
 
 This is useful for understanding and debugging the Agent Loop.
 
+**`Dockerfile`**
+
+Defines how the Trisagent Docker image is built.
+
+The Docker image includes the Python runtime, application dependencies, and Trisagent source code.
+
+**`compose.yaml`**
+
+Defines how the Trisagent container is started, including environment variables, Gmail authentication files, and container restart behavior.
+
 ---
 
 ## Environment Variables
@@ -225,11 +245,14 @@ Create a `.env` file in the project root:
 ```env
 OPENAI_API_KEY=your_openai_api_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_ALLOWED_USER_ID=your_telegram_user_id
 ```
+
+`TELEGRAM_ALLOWED_USER_ID` restricts access to the authorized Telegram user.
 
 Do not expose or commit API keys and tokens.
 
-The following files are excluded from Git:
+The following files and directories are excluded from Git:
 
 ```text
 .env
@@ -259,7 +282,7 @@ token.json
 
 Both files contain sensitive authentication information and must **never be committed to GitHub**.
 
-The current Gmail permission is read-only.
+The current Gmail permission is read-only:
 
 ```text
 gmail.readonly
@@ -306,13 +329,14 @@ Then configure:
 ```text
 .env
 credentials.json
+token.json
 ```
 
 before running the Agent.
 
 ---
 
-## Running Trisagent
+## Running Trisagent Locally
 
 ### Telegram Interface
 
@@ -356,6 +380,94 @@ This mode shows when the Agent:
 
 ---
 
+## Running Trisagent with Docker
+
+Trisagent can be packaged and run inside a Docker container.
+
+### Build the Docker Image
+
+```bash
+docker build -t trisagent:v1 .
+```
+
+This creates the Docker image:
+
+```text
+trisagent:v1
+```
+
+### Run with Docker Compose
+
+Make sure the following local files are configured:
+
+```text
+.env
+credentials.json
+token.json
+```
+
+Then start Trisagent:
+
+```bash
+docker compose up
+```
+
+To run Trisagent in the background:
+
+```bash
+docker compose up -d
+```
+
+Check the container status:
+
+```bash
+docker compose ps
+```
+
+View container logs:
+
+```bash
+docker compose logs -f
+```
+
+Stop and remove the Compose container:
+
+```bash
+docker compose down
+```
+
+After source code or dependency changes, rebuild and restart:
+
+```bash
+docker compose up -d --build
+```
+
+The Docker workflow is:
+
+```text
+Source Code
+     |
+     v
+Dockerfile
+     |
+     | docker build
+     v
+Docker Image
+trisagent:v1
+     |
+     | compose.yaml
+     v
+Container
+trisagent-bot
+     |
+     v
+Trisagent
+```
+
+Sensitive files such as `.env`, `credentials.json`, and `token.json` are not stored inside the Docker image. They are provided to the container at runtime.
+
+---
+
 ## Memory
 
 Trisagent currently uses LangGraph's in-memory checkpointer:
@@ -364,19 +476,21 @@ Trisagent currently uses LangGraph's in-memory checkpointer:
 InMemorySaver
 ```
 
-This provides short-term conversation memory while the Python process is running.
+This provides short-term conversation memory while the application process is running.
 
 Current limitation:
 
 ```text
-Bot running
-     |
+Trisagent running
+      |
 Conversation memory available
-     |
-Bot restarted
-     |
+      |
+Container / process restarted
+      |
 Memory is lost
 ```
+
+Docker does not make this memory persistent.
 
 Persistent memory will be added in a future version.
 
@@ -384,7 +498,7 @@ Persistent memory will be added in a future version.
 
 ## Security
 
-Sensitive information is stored locally and excluded through `.gitignore`.
+Sensitive information is stored locally and excluded through `.gitignore` and `.dockerignore`.
 
 Never commit:
 
@@ -395,30 +509,61 @@ credentials.json
 token.json
 ```
 
-The current development version is intended for personal use.
+Trisagent currently uses a Telegram user whitelist.
 
-Telegram user authorization is planned so that only the authorized owner can access Gmail-related Agent capabilities.
+The bot checks:
+
+```text
+Telegram User ID
+       |
+       v
+Authorized?
+   /       \
+ YES       NO
+  |         |
+  v         v
+Agent     Access denied
+```
+
+Only the configured `TELEGRAM_ALLOWED_USER_ID` is allowed to access the Agent through Telegram.
+
+The current Gmail integration uses read-only access.
 
 ---
 
 ## Current Status
 
-Current milestone:
+Current architecture:
 
 ```text
-Telegram
-    |
-    v
+Telegram / Terminal
+        |
+        v
 LangGraph Agent
-    |
-    v
+        |
+        v
 OpenAI
-    |
-    v
+        |
+        v
 Gmail Tools
+        |
+        v
+Gmail API
+```
+
+The application can run locally or inside Docker:
+
+```text
+Dockerfile
     |
     v
-Gmail API
+trisagent:v1
+    |
+    v
+Docker Compose
+    |
+    v
+trisagent-bot
 ```
 
 Working components:
@@ -435,20 +580,36 @@ Working components:
 - Short-term memory
 - Terminal interface
 - Telegram interface
+- Telegram user whitelist
 - Agent workflow debugging
+- Docker image
+- Docker Compose
 
 ---
 
 ## Roadmap
 
-Planned improvements include:
+Completed:
 
-- [ ] Telegram user authorization / whitelist
+- [x] Gmail API integration
+- [x] OpenAI integration
+- [x] LangChain tools
+- [x] LangGraph Agent workflow
+- [x] Multi-step Agent Loop
+- [x] Short-term conversation memory
+- [x] Terminal interface
+- [x] Telegram interface
+- [x] Telegram user authorization / whitelist
+- [x] Docker containerization
+- [x] Docker Compose
+
+Planned improvements:
+
 - [ ] Improved error handling
-- [ ] Gmail draft and send tools
-- [ ] Google Calendar integration
 - [ ] Persistent conversation memory
 - [ ] Long-term user memory
+- [ ] Google Calendar integration
+- [ ] Gmail draft and send tools
 - [ ] FastAPI backend
 - [ ] Web interface
 - [ ] Cloud deployment
