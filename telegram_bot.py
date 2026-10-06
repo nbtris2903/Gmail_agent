@@ -16,9 +16,16 @@ from agent_graph import graph
 #Đọc bot token
 load_dotenv()
 
+#whitelist
 TELEGRAM_BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN"
 )
+
+ALLOWED_USER_ID = int(
+    os.getenv("TELEGRAM_ALLOWED_USER_ID")
+)
+
+
 
 #===========
 #Tạo lệnh /start
@@ -26,6 +33,14 @@ async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
+    user_id = update.effective_user.id
+
+    if user_id != ALLOWED_USER_ID:
+        await update.message.reply_text(
+            "Bạn không có quyền sử dụng bot này."
+        )
+        return
+
     await update.message.reply_text(
         "Xin chào! Tôi là Trisagent."
     )
@@ -38,11 +53,20 @@ async def handle_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
+    user_id = update.effective_user.id
+
+    if user_id != ALLOWED_USER_ID:
+        await update.message.reply_text(
+            "Bạn không có quyền sử dụng bot này."
+        )
+        return
 
     user_input = update.message.text
     chat_id = update.effective_chat.id
 
     print(f"\n[TELEGRAM] Nhận: {user_input}")
+
+    # code xử lý Agent phía dưới giữ nguyên
 
     config = {
         "configurable": {
