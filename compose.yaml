@@ -1,0 +1,13 @@
+services:
+  trisagent:
+    image: trisagent:v1
+    container_name: trisagent-bot
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+
+    restart: unless-stopped

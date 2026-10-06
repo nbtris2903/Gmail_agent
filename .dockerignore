@@ -1,0 +1,23 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets
+.env
+credentials.json
+token.json
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
